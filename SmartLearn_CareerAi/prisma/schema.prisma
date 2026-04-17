@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? 
+  password      String    
+  quantumPubKey String?   
+  notes         Note[]
+  resumes       Resume[]
+  orgMemberships OrganizationMember[]
+  createdTemplates AIRuntimeTemplate[] @relation("CreatedTemplates")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  id      String   @id @default(cuid())
+  email   String   @unique
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model Otp {
+  id      String   @id @default(cuid())
+  email   String   @unique
+  code    String
+  expires DateTime
+
+  @@unique([email, code])
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   
+  summary     String?  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  quizzes     Quiz[]
+  flashcards  Flashcard[]
+  createdAt   DateTime @default(now())
+}
+
+model Quiz {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  questions Json     
+  createdAt DateTime @default(now())
+}
+
+model Flashcard {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  front     String
+  back      String
+  createdAt DateTime @default(now())
+}
+
+model Resume {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  parsedText  String
+  jobDesc     String?
+  skillGaps   Json?    
+  createdAt   DateTime @default(now())
+}
+
+model Organization {
+  id        String               @id @default(cuid())
+  name      String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  members   OrganizationMember[]
+  templates AIRuntimeTemplate[]
+}
+
+model OrganizationMember {
+  id        String       @id @default(cuid())
+  orgId     String
+  userId    String
+  role      String       @default("member") // member | admin
+  createdAt DateTime     @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model AIRuntimeTemplate {
+  id            String       @id @default(cuid())
+  name          String
+  description   String
+  category      String
+  registryPath  String
+  isPrivate     Boolean      @default(true)
+
+  source        String       @default("platform") // platform | custom
+  status        String       @default("ready") // pulling_image | validating | ready | failed
+  errorMessage  String?
+
+  orgId         String?
+  ownerOrg      Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  createdBy     String?
+  creator       User?         @relation("CreatedTemplates", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  k8sSecretName String?       // registry-secret-{orgId}-{templateId}
+  deletedAt     DateTime?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([source])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([deletedAt])
+  // Prisma doesn't support partial unique indexes; we enforce "unique (orgId,name) for custom where deletedAt is null" in code.
+  @@unique([orgId, name, source, deletedAt])
+}
