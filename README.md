@@ -43,7 +43,7 @@ A full-stack AI-driven web application built with **Next.js**, designed to help 
 ## 🛠️ Tech Stack
 
 * **Frontend:** Next.js (App Router), TypeScript, CSS
-* **Backend:** Node.js API Routes
+* **Backend:** Next.js API Routes
 * **Database:** Prisma ORM
 * **Authentication:** Custom + OAuth (Google, GitHub)
 * **AI Integration:** Custom AI logic (via `src/lib/ai.ts`)
